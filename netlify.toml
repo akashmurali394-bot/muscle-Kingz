@@ -1,0 +1,22 @@
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/index.php"
+  to = "/index.html"
+  status = 301
+
+[[redirects]]
+  from = "/about.php"
+  to = "/about.html"
+  status = 301
+
+[[redirects]]
+  from = "/plans.php"
+  to = "/plans.html"
+  status = 301
+
+[[redirects]]
+  from = "/contact.php"
+  to = "/contact.html"
+  status = 301

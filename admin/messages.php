@@ -113,10 +113,35 @@ try {
     <a href="index.php">Dashboard</a>
     <a class="active" href="messages.php">Enquiries</a>
   </nav>
-  <div class="admin-user"><span><?= h((string)$_SESSION["admin_username"]) ?></span><form method="post" action="../logout.php"><input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>"><button class="logout-button" type="submit">LOG OUT</button></form></div>
+  <div class="admin-user">
+    <a href="../change_password.php" title="Change Password" style="color:#aaa;text-decoration:none;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:5px;">
+      <span>🔑</span> <?= h((string)$_SESSION["admin_username"]) ?>
+    </a>
+    <form method="post" action="../logout.php">
+      <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+      <button class="logout-button" type="submit">LOG OUT</button>
+    </form>
+  </div>
 </header>
+<?php
+$latestId = !empty($messages) ? (int)$messages[0]["id"] : 0;
+?>
 <main class="admin-main">
-  <div class="admin-page-heading"><div><p class="admin-eyebrow">MEMBER CONTACTS</p><h1>ENQUIRIES</h1><p>Read, organize and reply to contact form submissions.</p></div><a class="text-link" href="index.php">← Dashboard</a></div>
+  <div class="admin-page-heading">
+    <div>
+      <div style="display:flex;align-items:center;gap:15px;">
+        <p class="admin-eyebrow" style="margin:0;">MEMBER CONTACTS</p>
+        <span class="live-indicator"><span class="live-dot"></span> Live Real-Time</span>
+      </div>
+      <h1 style="margin:6px 0 0;">ENQUIRIES</h1>
+      <p>Read, organize and reply to contact form submissions.</p>
+    </div>
+    <a class="text-link" href="index.php">← Dashboard</a>
+  </div>
+  <div id="new-messages-alert" class="new-enquiry-banner" onclick="window.location.reload();">
+    <span>🔔 <strong id="new-messages-count">1</strong> new customer enquiry received! Click to view</span>
+    <span style="text-decoration:underline;">Refresh Page ↻</span>
+  </div>
   <?php if ($notice !== ""): ?><p class="admin-alert admin-alert-success" role="status"><?= h($notice) ?></p><?php endif; ?>
   <?php if ($error !== ""): ?><p class="admin-alert admin-alert-error" role="alert"><?= h($error) ?></p><?php endif; ?>
   <?php if ($loadError !== ""): ?><p class="admin-alert admin-alert-error" role="alert"><?= h($loadError) ?></p><?php endif; ?>
@@ -176,5 +201,28 @@ try {
   </div>
   <?php if (count($messages) === 100): ?><p class="admin-hint">Showing the latest 100 matching enquiries.</p><?php endif; ?>
 </main>
+<script>
+  let latestId = <?= (int)$latestId ?>;
+  function checkNewMessages() {
+    fetch('api_messages.php?since_id=' + latestId)
+      .then(res => {
+        if (!res.ok) throw new Error('Status ' + res.status);
+        return res.json();
+      })
+      .then(data => {
+        if (data.success && data.new_messages && data.new_messages.length > 0) {
+          const banner = document.getElementById('new-messages-alert');
+          const count = document.getElementById('new-messages-count');
+          if (banner && count) {
+            count.textContent = data.new_messages.length;
+            banner.style.display = 'flex';
+          }
+        }
+      })
+      .catch(err => console.debug('Polling check:', err));
+  }
+  // Check for new customer enquiries every 8 seconds
+  setInterval(checkNewMessages, 8000);
+</script>
 </body>
 </html>

@@ -36,8 +36,29 @@ The default public business details are **Muscle Kingz Gym**, **9940185140**, **
 
    This installs PHPMailer into the generated `vendor` directory. The project requires PHP 8.1 or later and PHP's `openssl` extension for Gmail SMTP.
 
-7. Open `http://localhost/gym-website/setup_admin.php`, create your first admin account using a unique username and a strong password of at least 12 characters, then **delete or disable `setup_admin.php` immediately**. The setup page also disables account creation after the first admin exists.
-8. Open `http://localhost/gym-website/login.php` and sign in. The dashboard is at `http://localhost/gym-website/admin/`.
+7. **Initial One-Time Admin Setup**:
+   You can generate your administrator credentials either via CLI or web browser:
+
+   - **CLI (Recommended during deployment / SSH)**:
+     ```bash
+     php setup_admin.php
+     ```
+     This automatically generates a unique admin username (e.g. `mkz_admin_xxxxxxxx`) and a cryptographically strong 18-character temporary password. It displays them on the console once, hashes the password using PHP `password_hash()`, stores it in the database with the `must_change_password` flag, and permanently locks further setup.
+
+   - **Web Browser**:
+     Open `http://localhost/gym-website/setup_admin.php` (or `https://your-domain.com/setup_admin.php` on live hosting).
+     Click **GENERATE ONE-TIME ADMIN CREDENTIALS**. The system will generate and display your unique username and temporary password on screen **once**.
+     *(Optional: Configure `GYM_SETUP_KEY` in your environment or `gym-website-secrets.php` to require a master authorization key before credentials can be generated).*
+
+   > **CRITICAL**: Copy and save the generated credentials immediately! Once you refresh or leave the page, setup is permanently locked and the credentials will NEVER be displayed again.
+
+8. **First Login & Mandatory Password Change**:
+   - Open `http://localhost/gym-website/login.php` (or `https://your-domain.com/login.php`).
+   - Sign in using your generated unique username and temporary password.
+   - You will be automatically redirected to `change_password.php`. You **cannot** access the admin dashboard or enquiries until you set your permanent password.
+   - Enter your current temporary password and create a strong permanent password (at least 12 characters with uppercase, lowercase, numbers, and symbols).
+   - Once saved, your permanent password is encrypted with `password_hash()` and you will be directed to the admin dashboard at `admin/index.php`.
+   - **Delete or disable `setup_admin.php`** on your live hosting server for maximum security.
 
 ## Optional Gmail notifications and email replies
 
@@ -76,23 +97,15 @@ If the database is unavailable, form submissions show a safe error and are not r
 
 - Use paid PHP/MySQL hosting for a public enquiry site. Confirm the selected plan runs PHP 8.1+, enables `pdo_mysql` and `openssl`, allows Composer or uploading `vendor/`, and permits outbound SMTP on port 587. External SMTP rules vary by provider and plan.
 - Create the production database and user in the hosting panel. The included `database.sql` intentionally does not create a database: select the new database in phpMyAdmin before importing, then set `GYM_DB_NAME` to the exact provider-assigned name (it may include an account prefix).
-- For an existing production installation, import the updated SQL to add `gym_settings`; the `INSERT IGNORE` seed preserves any saved contact settings. Back up the database first, and do not use a schema import as a substitute for future migrations.
-- Set `GYM_DB_HOST`, `GYM_DB_NAME`, `GYM_DB_USER`, and `GYM_DB_PASSWORD` in the hosting environment. If unavailable, create `gym-website-secrets.php` one directory above the web document root. It must return an array with those keys and, optionally, `GYM_GMAIL_USERNAME`, `GYM_GMAIL_APP_PASSWORD`, `GYM_NOTIFICATION_EMAIL`, `GYM_GMAIL_FROM`, and `GYM_GMAIL_FROM_NAME` keys. Environment variables take precedence. Never place this file inside a public directory or source control.
-
-  ```php
-  <?php
-  return [
-      "GYM_DB_HOST" => "database-host-from-provider",
-      "GYM_DB_NAME" => "provider-assigned-database",
-      "GYM_DB_USER" => "provider-assigned-user",
-      "GYM_DB_PASSWORD" => "your-unique-database-password",
-      "GYM_GMAIL_USERNAME" => "akashmurali394@gmail.com",
-      "GYM_GMAIL_APP_PASSWORD" => "your-google-app-password",
-      "GYM_NOTIFICATION_EMAIL" => "akashmurali394@gmail.com"
-  ];
+- For an existing production installation, the code automatically verifies and adds missing columns (`must_change_password`, `password_changed_at`). Alternatively, run this SQL in phpMyAdmin:
+  ```sql
+  ALTER TABLE admins ADD COLUMN IF NOT EXISTS must_change_password TINYINT(1) NOT NULL DEFAULT 1 AFTER password_hash;
+  ALTER TABLE admins ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP NULL DEFAULT NULL AFTER must_change_password;
   ```
-
-- The root `.htaccess` disables directory listing, denies direct requests for configuration/schema/Composer files and `vendor/`, and redirects HTTP to HTTPS. Enable the hosting SSL certificate first. If the provider handles HTTPS redirects itself or uses a reverse proxy, follow its HTTPS setting and disable or adjust the `.htaccess` redirect if you see a redirect loop.
-- In the hosting PHP settings, set `display_errors=Off` and `log_errors=On`; review server logs privately during troubleshooting. Do not show SQL, SMTP, or stack-trace details to visitors.
-- Import `database.sql` for initial setup only. It uses `CREATE TABLE IF NOT EXISTS`, but do not re-import it as a substitute for schema migrations; back up the database before schema changes.
-- Run `composer install --no-dev --prefer-dist` locally and upload `vendor/`, or run Composer on the server. Keep `composer.lock` and deploy its matching `vendor/` dependencies. Delete `setup_admin.php` immediately after creating the first admin.
+- Set `GYM_DB_HOST`, `GYM_DB_NAME`, `GYM_DB_USER`, and `GYM_DB_PASSWORD` in the hosting environment (or via `gym-website-secrets.php`).
+- Public URLs on deployed website:
+  - **Public Admin Login**: `https://<your-domain>/login.php`
+  - **One-Time Setup Page**: `https://<your-domain>/setup_admin.php` *(disable or delete once setup is run)*
+  - **Admin Dashboard**: `https://<your-domain>/admin/index.php`
+  - **Enquiries Manager**: `https://<your-domain>/admin/messages.php`
+- Run `composer install --no-dev --prefer-dist` locally and upload `vendor/`, or run Composer on the server. Delete `setup_admin.php` immediately after creating the first admin.

@@ -29,22 +29,30 @@ define("GYM_CONTACT_DEFAULTS", [
 ]);
 
 $privateSettings = [];
+$candidateSecretFiles = [];
 $documentRoot = realpath(is_string($_SERVER["DOCUMENT_ROOT"] ?? null) ? $_SERVER["DOCUMENT_ROOT"] : "");
 if ($documentRoot !== false) {
-    $privateConfigFile = dirname($documentRoot) . DIRECTORY_SEPARATOR . "gym-website-secrets.php";
+    $candidateSecretFiles[] = dirname($documentRoot) . DIRECTORY_SEPARATOR . "gym-website-secrets.php";
+}
+$candidateSecretFiles[] = __DIR__ . DIRECTORY_SEPARATOR . "gym-website-secrets.php";
+$candidateSecretFiles[] = dirname(__DIR__) . DIRECTORY_SEPARATOR . "gym-website-secrets.php";
+
+foreach ($candidateSecretFiles as $privateConfigFile) {
     if (is_file($privateConfigFile)) {
         $loadedSettings = require $privateConfigFile;
-        if (!is_array($loadedSettings)) {
-            error_log("Muscle Kingz private configuration must return an array.");
-            throw new RuntimeException("Private configuration is invalid.");
-        }
-        foreach ($loadedSettings as $key => $value) {
-            if (!is_string($key) || !is_string($value)) {
-                error_log("Muscle Kingz private configuration contains invalid values.");
-                throw new RuntimeException("Private configuration is invalid.");
+        if (is_array($loadedSettings)) {
+            $valid = true;
+            foreach ($loadedSettings as $key => $value) {
+                if (!is_string($key) || !is_string($value)) {
+                    $valid = false;
+                    break;
+                }
+            }
+            if ($valid) {
+                $privateSettings = array_merge($loadedSettings, $privateSettings);
+                break;
             }
         }
-        $privateSettings = $loadedSettings;
     }
 }
 $GLOBALS["gym_private_settings"] = $privateSettings;
@@ -93,13 +101,14 @@ function db(): PDO
     }
 
     $host = env_value("GYM_DB_HOST");
+    $port = env_value("GYM_DB_PORT", "3306");
     $name = env_value("GYM_DB_NAME");
     $user = env_value("GYM_DB_USER");
     $password = env_value("GYM_DB_PASSWORD");
     if ($host === "" || $name === "" || $user === "") {
         throw new RuntimeException("Database host, name, and user must be configured.");
     }
-    $dsn = "mysql:host={$host};dbname={$name};charset=utf8mb4";
+    $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
 
     try {
         $connection = new PDO($dsn, $user, $password, [
@@ -112,6 +121,79 @@ function db(): PDO
         throw new RuntimeException("The database is temporarily unavailable.", 0, $exception);
     }
     return $connection;
+}
+
+function ensure_admin_schema(PDO $connection): void
+{
+    $connection->exec(
+        "CREATE TABLE IF NOT EXISTS admins (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            username VARCHAR(50) NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            must_change_password TINYINT(1) NOT NULL DEFAULT 1,
+            password_changed_at TIMESTAMP NULL DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_admins_username (username)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+    );
+
+    // Backward-compatible schema migration for existing databases
+    try {
+        $hasMustChange = $connection->query("SHOW COLUMNS FROM admins LIKE 'must_change_password'")->fetch();
+        if (!$hasMustChange) {
+            $connection->exec("ALTER TABLE admins ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 1 AFTER password_hash");
+        }
+    } catch (Throwable $e) {
+        // Ignored if permissions or already present
+    }
+
+    try {
+        $hasPasswordChangedAt = $connection->query("SHOW COLUMNS FROM admins LIKE 'password_changed_at'")->fetch();
+        if (!$hasPasswordChangedAt) {
+            $connection->exec("ALTER TABLE admins ADD COLUMN password_changed_at TIMESTAMP NULL DEFAULT NULL AFTER must_change_password");
+        }
+    } catch (Throwable $e) {
+        // Ignored if permissions or already present
+    }
+}
+
+function generate_unique_admin_username(): string
+{
+    return "mkz_admin_" . bin2hex(random_bytes(4));
+}
+
+function generate_secure_temporary_password(int $length = 18): string
+{
+    $uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // exclude easily confused I, O
+    $lowercase = "abcdefghjkmnpqrstuvwxyz"; // exclude easily confused l, o
+    $numbers = "23456789";                  // exclude easily confused 0, 1
+    $symbols = "!@#$%^&*-_+=";
+
+    $chars = [];
+    // Ensure at least 3 chars from each category
+    for ($i = 0; $i < 3; $i++) {
+        $chars[] = $uppercase[random_int(0, strlen($uppercase) - 1)];
+        $chars[] = $lowercase[random_int(0, strlen($lowercase) - 1)];
+        $chars[] = $numbers[random_int(0, strlen($numbers) - 1)];
+        $chars[] = $symbols[random_int(0, strlen($symbols) - 1)];
+    }
+
+    $all = $uppercase . $lowercase . $numbers . $symbols;
+    $remaining = max(0, $length - count($chars));
+    for ($i = 0; $i < $remaining; $i++) {
+        $chars[] = $all[random_int(0, strlen($all) - 1)];
+    }
+
+    // Cryptographically secure Fisher-Yates shuffle
+    for ($i = count($chars) - 1; $i > 0; $i--) {
+        $j = random_int(0, $i);
+        $temp = $chars[$i];
+        $chars[$i] = $chars[$j];
+        $chars[$j] = $temp;
+    }
+
+    return implode("", $chars);
 }
 
 function h(string $value): string
@@ -144,9 +226,26 @@ function csrf_is_valid(): bool
 
 function require_admin(): void
 {
+    $inactivityLimit = 1800; // 30 minutes
+    if (isset($_SESSION["admin_last_active"]) && (time() - (int)$_SESSION["admin_last_active"] > $inactivityLimit)) {
+        unset($_SESSION["admin_id"], $_SESSION["admin_username"], $_SESSION["admin_last_active"], $_SESSION["must_change_password"]);
+        session_destroy();
+        header("Location: " . APP_BASE_PATH . "/login.php?expired=1");
+        exit;
+    }
+    $_SESSION["admin_last_active"] = time();
+
     if (!isset($_SESSION["admin_id"], $_SESSION["admin_username"])) {
         header("Location: " . APP_BASE_PATH . "/login.php");
         exit;
+    }
+
+    if (!empty($_SESSION["must_change_password"])) {
+        $scriptName = basename($_SERVER["SCRIPT_NAME"] ?? "");
+        if ($scriptName !== "change_password.php") {
+            header("Location: " . APP_BASE_PATH . "/change_password.php");
+            exit;
+        }
     }
 }
 

@@ -115,7 +115,46 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .admin-alert { margin: 18px 0; padding: 12px 14px; border: 1px solid; font-size: 12px; }
 .admin-alert-error { border-color: #793039; background: #301316; color: #ffc4c8; }
 .admin-alert-success { border-color: #286d48; background: #10251a; color: #b2f3cc; }
+.admin-alert-info { border-color: #26557a; background: #0f2334; color: #bde1ff; }
 .admin-alert code { color: #fff; }
+
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: #25D366;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #25D366;
+  box-shadow: 0 0 8px #25D366;
+  animation: livePulse 2s infinite ease-in-out;
+}
+@keyframes livePulse {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+.new-enquiry-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  background: #143522;
+  border: 1px solid #286d48;
+  color: #b2f3cc;
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 4px;
+}
 .admin-topbar {
   position: sticky;
   top: 0;
@@ -236,3 +275,45 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .status-form { grid-template-columns: 1fr; }
   .status-form label, .status-form select, .status-form button { grid-column: 1; }
 }
+
+/* One-time setup and password management helpers */
+.credential-display-group {
+  margin: 22px 0;
+}
+.credential-row {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0 16px;
+}
+.credential-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: #0c0c0c !important;
+  border: 1px solid #444 !important;
+  color: #fff !important;
+}
+.credential-input-password {
+  color: #25D366 !important;
+}
+.copy-btn {
+  white-space: nowrap;
+  min-width: 80px;
+  min-height: 43px;
+  margin: 0 !important;
+}
+.setup-instructions-box {
+  background: #141414;
+  border: 1px solid #333;
+  padding: 16px;
+  margin: 20px 0;
+  font-size: 12px;
+  color: #ccc;
+}
+.setup-instructions-box ol {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  line-height: 1.7;
+}
+

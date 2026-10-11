@@ -78,10 +78,37 @@ if ($settingsError !== "" && $_SERVER["REQUEST_METHOD"] === "POST") {
     <a href="messages.php">Enquiries</a>
     <a href="#business-settings">Business details</a>
   </nav>
-  <div class="admin-user"><span><?= h((string)$_SESSION["admin_username"]) ?></span><form method="post" action="../logout.php"><input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>"><button class="logout-button" type="submit">LOG OUT</button></form></div>
+  <div class="admin-user">
+    <a href="../change_password.php" title="Change Password" style="color:#aaa;text-decoration:none;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:5px;">
+      <span>🔑</span> <?= h((string)$_SESSION["admin_username"]) ?>
+    </a>
+    <form method="post" action="../logout.php">
+      <input type="hidden" name="csrf_token" value="<?= h(csrf_token()) ?>">
+      <button class="logout-button" type="submit">LOG OUT</button>
+    </form>
+  </div>
 </header>
 <main class="admin-main">
-  <div class="admin-page-heading"><div><p class="admin-eyebrow">MUSCLE KINGZ GYM</p><h1>OVERVIEW</h1><p>Review recent member enquiries and follow up with prospects.</p></div><a class="admin-button admin-button-link" href="messages.php">MANAGE ENQUIRIES <span aria-hidden="true">→</span></a></div>
+  <?php if (isset($_GET["password_changed"]) && $_GET["password_changed"] === "1"): ?>
+    <div class="admin-alert admin-alert-success" style="margin-bottom: 24px;">
+      ✓ Permanent password set successfully! Your admin account is now fully secured.
+    </div>
+  <?php endif; ?>
+  <div class="admin-page-heading">
+    <div>
+      <div style="display:flex;align-items:center;gap:15px;">
+        <p class="admin-eyebrow" style="margin:0;">MUSCLE KINGZ GYM</p>
+        <span class="live-indicator"><span class="live-dot"></span> Live Real-Time</span>
+      </div>
+      <h1 style="margin:6px 0 0;">OVERVIEW</h1>
+      <p>Review recent member enquiries and follow up with prospects.</p>
+    </div>
+    <a class="admin-button admin-button-link" href="messages.php">MANAGE ENQUIRIES <span aria-hidden="true">→</span></a>
+  </div>
+  <div id="new-messages-alert" class="new-enquiry-banner" onclick="window.location.reload();">
+    <span>🔔 <strong id="new-messages-count">1</strong> new customer enquiry received!</span>
+    <span style="text-decoration:underline;">Refresh Overview ↻</span>
+  </div>
   <?php if ($loadError !== ""): ?><p class="admin-alert admin-alert-error" role="alert"><?= h($loadError) ?></p><?php endif; ?>
   <section class="stat-grid" aria-label="Enquiry statistics">
     <article class="stat-card"><span>TOTAL ENQUIRIES</span><strong><?= $stats["total"] ?></strong><small>All saved submissions</small></article>
@@ -128,5 +155,28 @@ if ($settingsError !== "" && $_SERVER["REQUEST_METHOD"] === "POST") {
     <p class="admin-hint">These details appear on the public site and in enquiry notifications. An explicitly configured GYM_NOTIFICATION_EMAIL environment variable overrides the notification recipient.</p>
   </section>
 </main>
+<script>
+  let latestId = <?= !empty($recentMessages) ? (int)$recentMessages[0]["id"] : 0 ?>;
+  function checkOverviewNewMessages() {
+    fetch('api_messages.php?since_id=' + latestId)
+      .then(res => {
+        if (!res.ok) throw new Error('Status ' + res.status);
+        return res.json();
+      })
+      .then(data => {
+        if (data.success && data.new_messages && data.new_messages.length > 0) {
+          const banner = document.getElementById('new-messages-alert');
+          const count = document.getElementById('new-messages-count');
+          if (banner && count) {
+            count.textContent = data.new_messages.length;
+            banner.style.display = 'flex';
+          }
+        }
+      })
+      .catch(err => console.debug('Polling check:', err));
+  }
+  // Check for new customer enquiries every 8 seconds
+  setInterval(checkOverviewNewMessages, 8000);
+</script>
 </body>
 </html>

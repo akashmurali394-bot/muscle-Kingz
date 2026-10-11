@@ -475,7 +475,99 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 .error-box { border: 1px solid #7b2929; background: #301313; color: #ffc4c4; }
 .error-box ul { margin: 7px 0 0; padding-left: 20px; }
 
+/* Prominent Quick Contact Bar */
+.quick-contact-section {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 40px 24px 0;
+}
+.quick-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.quick-contact-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text);
+  text-decoration: none;
+  transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+.quick-contact-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  background: var(--panel-light);
+  box-shadow: 0 8px 20px rgba(0,0,0,.4);
+}
+.quick-contact-card.card-whatsapp:hover {
+  border-color: #25D366;
+  box-shadow: 0 8px 20px rgba(37,211,102,.2);
+}
+.quick-contact-card .card-icon {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  display: grid;
+  place-items: center;
+  background: #211113;
+  color: var(--accent);
+  border-radius: 4px;
+}
+.quick-contact-card.card-whatsapp .card-icon {
+  background: #0d2818;
+  color: #25D366;
+}
+.quick-contact-card .card-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.quick-contact-card .card-label {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: #fff;
+  line-height: 1.1;
+}
+.quick-contact-card.card-whatsapp .card-label {
+  color: #25D366;
+}
+.quick-contact-card .card-sub {
+  font-size: 12px;
+  color: #aaa;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 3px;
+}
+
+/* WhatsApp CTA Block */
+.whatsapp-cta-block {
+  margin-top: 24px;
+}
+.btn-whatsapp {
+  border-color: #25D366;
+  background: #25D366;
+  color: #fff;
+}
+.btn-whatsapp:hover {
+  border-color: #2ee672;
+  background: #2ee672;
+  box-shadow: 0 8px 24px rgba(37,211,102,.28);
+}
+.contact-details .icon-whatsapp {
+  background: #0d2818 !important;
+  color: #25D366 !important;
+}
+
 @media (max-width: 850px) {
+  .quick-contact-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .site-header { flex-direction: column; justify-content: center; gap: 10px; padding: 14px 5%; }
   .site-header nav { gap: clamp(16px, 5vw, 34px); }
   .hero { min-height: 600px; padding: 75px 7%; }
@@ -515,6 +607,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   .feature-strip { grid-template-columns: 1fr; }
   .feature-strip > div { min-height: 62px; justify-content: flex-start; padding-left: 12%; border-right: 0; border-bottom: 1px solid var(--line); }
   .feature-strip > div:last-child { border-bottom: 0; }
+  .quick-contact-section { padding: 25px 17px 0; }
+  .quick-contact-grid { grid-template-columns: 1fr; gap: 10px; }
+  .quick-contact-card { padding: 14px 16px; }
   .contact-layout { padding: 45px 17px 60px; }
   .contact-form { padding: 22px 18px; }
   .contact-form h2 { font-size: 28px; }
